@@ -1,7 +1,6 @@
 package pcd.ass02;
 
 import java.util.List;
-import java.util.Set;
 
 public class ClassDepsReport {
     private final String className;
@@ -15,13 +14,6 @@ public class ClassDepsReport {
     public String getClassName() { return className; }
     public List<DependencyEntry> getDependencies() { return dependencies; }
 
-    public record DependencyEntry(String type, String context) {
-        @Override
-        public String toString() {
-            return "type " + type + " (" + context + ")";
-        }
-    }
-
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -31,4 +23,20 @@ public class ClassDepsReport {
         }
         return sb.toString();
     }
+
+    public static class DependencyEntry {
+        private final String type;
+        private final String context;
+
+        public DependencyEntry(String type, String context) {
+            this.type = type;
+            this.context = context;
+        }
+
+        @Override
+        public String toString() {
+            return "type " + type + " (" + context + ")";
+        }
+    }
+
 }

@@ -14,15 +14,13 @@ public class DependencyAnalyserTest {
             .onSuccess(System.out::println)
             .onFailure(err -> System.err.println("Class Error: " + err.getMessage()));
 
-        // // Test getPackageDependencies (foopack)
-        // File packageFolder = new File("src/main/java/pcd/ass02/foopack");
-        // analyser.getPackageDependencies(packageFolder)
-        //     .onSuccess(report -> {
-        //         System.out.println("\nPackage: " + report.packageName());
-        //         report.classReports().forEach(r ->
-        //             System.out.println("  Class: " + r.className() + ", Deps: " + r.dependencies()));
-        //     })
-        //     .onFailure(err -> System.err.println("Package Error: " + err.getMessage()));
+        File packageFolder = new File("src/main/java/pcd/ass02");
+        analyser.getPackageDependencies(packageFolder)
+            .onSuccess(report -> {
+                System.out.println("\nPackage: " + report.getPackageName());
+                report.getClassReports().forEach(System.out::println);
+            })
+            .onFailure(err -> System.err.println("Package Error: " + err.getMessage()));
 
         // // Test getProjectDependencies (entire src/main/java)
         // File projectFolder = new File("src/main/java");
