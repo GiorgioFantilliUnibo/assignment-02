@@ -1,6 +1,7 @@
 package pcd.ass02;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ClassDepsReport {
     private final String className;
@@ -15,13 +16,9 @@ public class ClassDepsReport {
     public List<DependencyEntry> getDependencies() { return dependencies; }
 
     @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Class: ").append(className).append("\n");
-        for (DependencyEntry dep : dependencies) {
-            sb.append(dep.toString()).append("\n");
-        }
-        return sb.toString();
+    public String toString(){
+        return "\nClass: " + className + "\n" +
+                dependencies.stream().map(DependencyEntry::toString).collect(Collectors.joining("\n"));
     }
 
     public static class DependencyEntry {

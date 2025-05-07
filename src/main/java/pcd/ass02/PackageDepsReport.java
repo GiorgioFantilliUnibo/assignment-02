@@ -1,6 +1,7 @@
 package pcd.ass02;
 
 import java.util.Set;
+import java.util.stream.Collectors;
 
 
 public class PackageDepsReport {
@@ -14,4 +15,10 @@ public class PackageDepsReport {
 
     public String getPackageName() { return packageName; }
     public Set<ClassDepsReport> getClassReports() { return classReports; }
+
+    @Override
+    public String toString(){
+        return "\n\nPackage: " + packageName + "\n" + 
+                classReports.stream().map(ClassDepsReport::toString).collect(Collectors.joining("\n"));
+    }
 }

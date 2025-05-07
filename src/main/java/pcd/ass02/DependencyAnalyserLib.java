@@ -38,7 +38,8 @@ public class DependencyAnalyserLib {
         vertx.fileSystem().readFile(classSrcFile.getAbsolutePath(), res -> {
             if (res.succeeded()) {
                 try {
-                    ParseResult<CompilationUnit> parseResult = javaParser.parse(res.result().toString(StandardCharsets.UTF_8));
+                    ParseResult<CompilationUnit> parseResult = javaParser
+                            .parse(res.result().toString(StandardCharsets.UTF_8));
                     if (parseResult.isSuccessful()) {
                         CompilationUnit cu = parseResult.getResult().get();
                         List<DependencyEntry> dependencies = new ArrayList<>();
@@ -69,9 +70,11 @@ public class DependencyAnalyserLib {
                             public void visit(MethodDeclaration n, Void arg) {
                                 super.visit(n, arg);
                                 n.getParameters().forEach(p -> {
-                                    dependencies.add(new DependencyEntry(p.getType().asString(), "method decl, param type"));
+                                    dependencies.add(
+                                            new DependencyEntry(p.getType().asString(), "method decl, param type"));
                                 });
-                                dependencies.add(new DependencyEntry(n.getType().asString(), "method decl, return type"));
+                                dependencies
+                                        .add(new DependencyEntry(n.getType().asString(), "method decl, return type"));
                             }
 
                             @Override
@@ -98,34 +101,19 @@ public class DependencyAnalyserLib {
                             public void visit(ImportDeclaration n, Void arg) {
                                 super.visit(n, arg);
                                 if (!n.isAsterisk()) {
-                                    var nameNode = n.getChildNodes().get(0); // Name node
+                                    var nameNode = n.getChildNodes().get(0); 
                                     var typeName = nameNode.toString();
-                                    var packageNode = nameNode.getChildNodes().get(0); // First part (package)
+                                    var packageNode = nameNode.getChildNodes().get(0); 
                                     String packageName = packageNode.toString();
                                     String context = "import package: " + packageName;
                                     dependencies.add(new DependencyEntry(typeName, context));
                                 } else {
-                                    var packageNode = n.getChildNodes().get(0); // Package for asterisk import
+                                    var packageNode = n.getChildNodes().get(0); 
                                     String packageName = packageNode.toString();
                                     dependencies.add(new DependencyEntry(packageName, "import"));
                                 }
                             }
                         }.visit(cu, null);
-
-                        // // Filter out duplicate class/int declarations, keeping only the main class
-                        // List<ClassDepsReport.DependencyEntry> filteredDeps = new ArrayList<>();
-                        // boolean foundMainClass = false;
-                        // for (ClassDepsReport.DependencyEntry dep : dependencies) {
-                        //     if (dep.type().equals(className) && dep.context().equals("class/int decl")) {
-                        //         if (!foundMainClass) {
-                        //             filteredDeps.add(dep);
-                        //             foundMainClass = true;
-                        //         }
-                        //     } else {
-                        //         filteredDeps.add(dep);
-                        //     }
-                        // }
-
                         promise.complete(new ClassDepsReport(className, dependencies));
                     } else {
                         promise.fail("Parsing failed: " + parseResult.getProblems());
@@ -142,27 +130,25 @@ public class DependencyAnalyserLib {
 
     public Future<PackageDepsReport> getPackageDependencies(File packageSrcFolder) {
         Promise<PackageDepsReport> promise = Promise.promise();
-        vertx.fileSystem().readDir(packageSrcFolder.getAbsolutePath(), res -> {
+        vertx.fileSystem().readDir(packageSrcFolder.getAbsolutePath(), ".*\\.java$", res -> {
             if (res.succeeded()) {
                 List<String> filePaths = res.result().stream()
-                    .map(File::new)
-                    .filter(File::isFile) // Exclude directories
-                    .map(File::getAbsolutePath)
-                    .filter(path -> path.toLowerCase().endsWith(".java")) // Match .java files case-insensitively
-                    .toList();
-                // System.out.println("Found .java files in " + packageSrcFolder.getAbsolutePath() + ": " + filePaths);
+                        .map(File::new)
+                        .filter(File::isFile) 
+                        .map(File::getAbsolutePath)
+                        .toList();
                 if (filePaths.isEmpty()) {
                     promise.complete(new PackageDepsReport(packageSrcFolder.getName(), new HashSet<>()));
                 } else {
                     List<Future<ClassDepsReport>> futures = filePaths.stream()
-                        .map(path -> getClassDependencies(new File(path)))
-                        .toList();
-    
+                            .map(path -> getClassDependencies(new File(path)))
+                            .toList();
+
                     Future.all(futures).onComplete(cf -> {
                         if (cf.succeeded()) {
                             Set<ClassDepsReport> reports = cf.result().list().stream()
-                                .map(r -> (ClassDepsReport) r)
-                                .collect(Collectors.toSet());
+                                    .map(r -> (ClassDepsReport) r)
+                                    .collect(Collectors.toSet());
                             promise.complete(new PackageDepsReport(packageSrcFolder.getName(), reports));
                         } else {
                             promise.fail(cf.cause());
@@ -176,36 +162,60 @@ public class DependencyAnalyserLib {
         return promise.future();
     }
 
-    // public Future<ProjectDepsReport> getProjectDependencies(File projectSrcFolder) {
-    //     Promise<ProjectDepsReport> promise = Promise.promise();
-    //     vertx.fileSystem().readDir(projectSrcFolder.getAbsolutePath(), res -> {
-    //         if (res.succeeded()) {
-    //             List<Future<PackageDepsReport>> futures = res.result().stream()
-    //                 .map(path -> new File(path))
-    //                 .filter(File::isDirectory)
-    //                 .map(this::getPackageDependencies)
-    //                 .toList();
+    public Future<ProjectDepsReport> getProjectDependencies(File projectSrcFolder) {
+        Promise<ProjectDepsReport> promise = Promise.promise();
+        vertx.fileSystem().readDir(projectSrcFolder.getAbsolutePath(), res -> {
+            if (res.succeeded()) {
 
-    //             CompositeFuture.all(futures).onComplete(cf -> {
-    //                 if (cf.succeeded()) {
-    //                     Set<PackageDepsReport> reports = cf.result().list().stream()
-    //                         .map(r -> (PackageDepsReport) r)
-    //                         .collect(Collectors.toSet());
-    //                     promise.complete(new ProjectDepsReport(projectSrcFolder.getAbsolutePath(), reports));
-    //                 } else {
-    //                     promise.fail(cf.cause());
-    //                 }
-    //             });
-    //         } else {
-    //             promise.fail(res.cause());
-    //         }
-    //     });
-    //     return promise.future();
-    // }
+                List<PackageDepsReport> reports = new ArrayList<>();
+
+                Future<PackageDepsReport> currentFolderFuture = getPackageDependencies(projectSrcFolder);
+
+                List<Future<ProjectDepsReport>> nestedFoldersfuture = res.result().stream()
+                        .map(path -> new File(path))
+                        .filter(File::isDirectory)
+                        .map(this::getProjectDependencies)
+                        .toList();
+
+                currentFolderFuture.onComplete(cf -> {
+                    if (cf.succeeded()) {
+                        reports.add(0, cf.result());;
+                    } else {
+                        promise.fail(cf.cause());
+                    }
+                });
+
+                Future.all(nestedFoldersfuture).onComplete(cf -> {
+                    if (cf.succeeded()) {
+                        List<ProjectDepsReport> projectsReports = cf.result().list();
+                        projectsReports.stream().flatMap(r -> r.getPackageReports().stream()).forEach(reports::add);
+                    } else {
+                        promise.fail(cf.cause());
+                    }
+                });
+
+                List<Future<?>> futures = new ArrayList<>();
+                futures.add(currentFolderFuture);
+                futures.addAll(nestedFoldersfuture);
+
+                Future.all(futures).onComplete(cf -> {
+                    if(cf.succeeded()){
+                        promise.complete(new ProjectDepsReport(projectSrcFolder.getAbsolutePath(), reports));
+                    } else {
+                        promise.fail(cf.cause());
+                    }
+                });
+
+            } else {
+                promise.fail(res.cause());
+            }
+        });
+        return promise.future();
+    }
 
     private String extractClassName(CompilationUnit cu) {
         return cu.findFirst(ClassOrInterfaceDeclaration.class)
-            .flatMap(c -> c.getFullyQualifiedName())
-            .orElse("Unknown");
+                .flatMap(c -> c.getFullyQualifiedName())
+                .orElse("Unknown");
     }
 }
