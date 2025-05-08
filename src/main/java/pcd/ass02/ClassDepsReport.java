@@ -32,7 +32,7 @@ public class ClassDepsReport {
 
         @Override
         public String toString() {
-            return "type " + type + " (" + context + ")";
+            return type + " (" + context + ")";
         }
     }
 
