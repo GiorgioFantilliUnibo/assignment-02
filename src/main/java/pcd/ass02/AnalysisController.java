@@ -1,28 +1,15 @@
 package pcd.ass02;
 
-import io.reactivex.rxjava3.core.BackpressureOverflowStrategy;
-import io.reactivex.rxjava3.core.Flowable;
-import io.reactivex.rxjava3.schedulers.Schedulers;
 
 import javax.swing.*;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 public class AnalysisController {
     private final AnalysisModel model;
     private final AnalysisView view;
-    private final DependencyParser parser;
-    private final Map<String, Integer> packageClassCount;
-    private final Set<String> printedPackages;
 
-    public AnalysisController(AnalysisModel model, AnalysisView view, DependencyParser parser) {
+    public AnalysisController(AnalysisModel model, AnalysisView view) {
         this.model = model;
         this.view = view;
-        this.parser = parser;
-        this.packageClassCount = new HashMap<>();
-        this.printedPackages = new HashSet<>();
         initListeners();
     }
 
@@ -63,75 +50,30 @@ public class AnalysisController {
 
     private void startAnalysis() {
         model.reset();
-        packageClassCount.clear();
-        printedPackages.clear();
         view.updateStatus("Analyzing...");
         view.updateAnalyzedCount(0);
         view.updateDepsCount(0);
         view.updateHierarchy("");
 
-        Flowable<ClassDepsReport> classReports = parser.parseProject(model.getSelectedDir());
+        model.parseProject(
+            report -> {
+                StringBuilder hierarchy = model.getHierarchy(report);
+                this.updateView(hierarchy);
+            },
+            () -> this.updateViewStatus("Analysis complete"),
+            error -> this.updateViewStatus("Error: " + error.getMessage())
+        );
+    }
 
-        classReports
-                .onBackpressureBuffer(1000, () -> System.err.println("Buffer overflow"), BackpressureOverflowStrategy.DROP_OLDEST)
-                .observeOn(Schedulers.computation())
-                .doOnNext(report -> {
-                    model.getAnalyzedCount().incrementAndGet();
-                    model.getDepsCount().addAndGet(report.getDependencies().size());
+    public void updateViewStatus(String string) {
+        SwingUtilities.invokeLater(() -> view.updateStatus(string));
+    }
 
-                    String packageName = report.getPackageName().isEmpty() ? "default" : report.getPackageName();
-
-                    // Track class count per package
-                    int classIndex = packageClassCount.compute(packageName, (k, v) -> v == null ? 1 : v + 1);
-
-                    // Build hierarchy text
-                    StringBuilder hierarchy = model.getHierarchy();
-
-                    // Handle package hierarchy
-                    if (classIndex == 1) {
-                        String[] packageParts = packageName.equals("default") ? new String[]{"default"} : packageName.split("\\.");
-                        String currentPackage = "";
-                        for (int i = 0; i < packageParts.length; i++) {
-                            currentPackage = currentPackage.isEmpty() ? packageParts[i] : currentPackage + "." + packageParts[i];
-                            if (!printedPackages.contains(currentPackage)) {
-                                String indent = "    ".repeat(i);
-                                hierarchy.append(indent).append("> Package: ").append(packageParts[i]).append("\n");
-                                printedPackages.add(currentPackage);
-                            }
-                        }
-                    }
-
-                    // Add class
-                    int packageDepth = packageName.equals("default") ? 0 : packageName.split("\\.").length;
-                    String classIndent = "  ".repeat(packageDepth + 3);
-                    for (ClassDepsReport.DependencyEntry dep : report.getDependencies()) {
-                        if (dep.getContext().equals("class/int decl")) {
-                            hierarchy.append(classIndent).append("Class: ").append(dep.getType())
-                                    .append(" (").append(dep.getContext()).append(")\n");
-                            break;
-                        }
-                    }
-
-                    // Add dependencies
-                    String depIndent = "  ".repeat(packageDepth + 5);
-                    for (ClassDepsReport.DependencyEntry dep : report.getDependencies()) {
-                        if (!dep.getContext().equals("class/int decl") && !dep.getContext().equals("package decl") && !dep.getContext().equals("import")) {
-                            hierarchy.append(depIndent).append(" ").append(dep.getType())
-                                    .append(" (").append(dep.getContext()).append(")\n");
-                        }
-                    }
-
-                    // Update GUI on Swing EDT
-                    SwingUtilities.invokeLater(() -> {
-                        view.updateAnalyzedCount(model.getAnalyzedCount().get());
-                        view.updateDepsCount(model.getDepsCount().get());
-                        view.updateHierarchy(hierarchy.toString());
-                    });
-                })
-                .subscribe(
-                        report -> { },
-                        error -> SwingUtilities.invokeLater(() -> view.updateStatus("Error: " + error.getMessage())),
-                        () -> SwingUtilities.invokeLater(() -> view.updateStatus("Analysis complete"))
-                );
+    public void updateView(StringBuilder hierarchy) {
+        SwingUtilities.invokeLater(() -> {
+            view.updateAnalyzedCount(model.getAnalyzedCount().get());
+            view.updateDepsCount(model.getDepsCount().get());
+            view.updateHierarchy(hierarchy.toString());
+        });
     }
 }
