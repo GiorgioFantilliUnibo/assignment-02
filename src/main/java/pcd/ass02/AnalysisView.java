@@ -11,8 +11,11 @@ public class AnalysisView {
     private final JLabel analyzedCountLabel;
     private final JLabel depsCountLabel;
     private final JTextArea hierarchyArea;
+    private AnalysisController controller;
 
-    public AnalysisView(AnalysisModel model) {
+    public AnalysisView() {
+        this.controller = controller;
+
         frame = new JFrame("Dependency Analyser");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(new Dimension(800, 600));
@@ -24,6 +27,8 @@ public class AnalysisView {
         startButton = new JButton("Start Analysis");
         controlPanel.add(selectDirButton);
         controlPanel.add(startButton);
+
+        this.initListeners();
 
         // Status panel (top, below controls)
         JPanel statusPanel = new JPanel(new GridLayout(3, 1, 5, 5));
@@ -50,6 +55,44 @@ public class AnalysisView {
         frame.add(scrollPane, BorderLayout.CENTER);
 
         frame.setVisible(true);
+    }
+
+    private void initListeners(){
+        selectDirButton.addActionListener(e -> {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+
+            int result = chooser.showOpenDialog(selectDirButton.getParent());
+            if (result == JFileChooser.APPROVE_OPTION) {
+                controller.setSelectedDir(chooser.getSelectedFile());
+
+                String fullPath = chooser.getSelectedFile().getPath();
+                String displayPath = truncatePathStart(fullPath, 100);
+                this.updateStatus("Selected " + displayPath);
+            } else {
+                this.updateStatus("Idle");
+            }
+        });
+
+        startButton.addActionListener(e -> {
+            if (!controller.startAnalysis()) {
+                this.updateStatus("Please select a folder");
+            }
+        });
+    }
+
+    private String truncatePathStart(String path, int maxLength) {
+        if (path == null) {
+            return "";
+        }
+        if (path.length() <= maxLength) {
+            return path;
+        }
+        return "..." + path.substring(path.length() - (maxLength - 3));
+    }
+
+    public void setController(AnalysisController controller){
+        this.controller = controller;
     }
 
     public JButton getSelectDirButton() {

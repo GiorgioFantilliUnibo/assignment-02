@@ -1,10 +1,11 @@
 package pcd.ass02;
 
 import java.io.File;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class AnalysisModel {
-    private File selectedDir;
+    private Optional<File> selectedDir;
     private final AtomicInteger analyzedCount = new AtomicInteger(0);
     private final AtomicInteger depsCount = new AtomicInteger(0);
     private final StringBuilder hierarchy;
@@ -14,11 +15,11 @@ public class AnalysisModel {
     }
 
     public File getSelectedDir() {
-        return selectedDir;
+        return selectedDir.orElseThrow(IllegalStateException::new);
     }
 
     public void setSelectedDir(File selectedDir) {
-        this.selectedDir = selectedDir;
+        this.selectedDir = Optional.of(selectedDir);
     }
 
     public AtomicInteger getAnalyzedCount() {

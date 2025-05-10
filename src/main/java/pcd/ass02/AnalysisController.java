@@ -5,6 +5,7 @@ import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
 import javax.swing.*;
+import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -23,45 +24,10 @@ public class AnalysisController {
         this.parser = parser;
         this.packageClassCount = new HashMap<>();
         this.printedPackages = new HashSet<>();
-        initListeners();
+        this.view.setController(this);
     }
 
-    private void initListeners() {
-        view.getSelectDirButton().addActionListener(e -> {
-            JFileChooser chooser = new JFileChooser();
-            chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-            int result = chooser.showOpenDialog(view.getSelectDirButton().getParent());
-            if (result == JFileChooser.APPROVE_OPTION) {
-                model.setSelectedDir(chooser.getSelectedFile());
-
-                String fullPath = model.getSelectedDir().getPath();
-                String displayPath = truncatePathStart(fullPath, 100);
-                view.updateStatus("Selected " + displayPath);
-            } else {
-                view.updateStatus("Idle");
-            }
-        });
-
-        view.getStartButton().addActionListener(e -> {
-            if (model.getSelectedDir() != null) {
-                startAnalysis();
-            } else {
-                view.updateStatus("Please select a folder");
-            }
-        });
-    }
-
-    private String truncatePathStart(String path, int maxLength) {
-        if (path == null) {
-            return "";
-        }
-        if (path.length() <= maxLength) {
-            return path;
-        }
-        return "..." + path.substring(path.length() - (maxLength - 3));
-    }
-
-    private void startAnalysis() {
+    public boolean startAnalysis() {
         model.reset();
         packageClassCount.clear();
         printedPackages.clear();
@@ -70,12 +36,15 @@ public class AnalysisController {
         view.updateDepsCount(0);
         view.updateHierarchy("");
 
-        Flowable<ClassDepsReport> classReports = parser.parseProject(model.getSelectedDir());
+        Flowable<ClassDepsReport> classReports;
+        try {
+            classReports = parser.parseProject(model.getSelectedDir());
+        } catch (IllegalStateException e) {
+            return false;
+        }
 
-        classReports
-                .onBackpressureBuffer(1000, () -> System.err.println("Buffer overflow"), BackpressureOverflowStrategy.DROP_OLDEST)
-                .observeOn(Schedulers.computation())
-                .doOnNext(report -> {
+        classReports.onBackpressureBuffer(1000, () -> System.err.println("Buffer overflow"), BackpressureOverflowStrategy.DROP_OLDEST).observeOn(Schedulers.computation())
+                .subscribe(report -> {
                     model.getAnalyzedCount().incrementAndGet();
                     model.getDepsCount().addAndGet(report.getDependencies().size());
 
@@ -106,8 +75,7 @@ public class AnalysisController {
                     String classIndent = "  ".repeat(packageDepth + 3);
                     for (ClassDepsReport.DependencyEntry dep : report.getDependencies()) {
                         if (dep.getContext().equals("class/int decl")) {
-                            hierarchy.append(classIndent).append("Class: ").append(dep.getType())
-                                    .append(" (").append(dep.getContext()).append(")\n");
+                            hierarchy.append(classIndent).append("Class: ").append(dep.getType()).append(" (").append(dep.getContext()).append(")\n");
                             break;
                         }
                     }
@@ -116,8 +84,7 @@ public class AnalysisController {
                     String depIndent = "  ".repeat(packageDepth + 5);
                     for (ClassDepsReport.DependencyEntry dep : report.getDependencies()) {
                         if (!dep.getContext().equals("class/int decl") && !dep.getContext().equals("package decl") && !dep.getContext().equals("import")) {
-                            hierarchy.append(depIndent).append(" ").append(dep.getType())
-                                    .append(" (").append(dep.getContext()).append(")\n");
+                            hierarchy.append(depIndent).append(" ").append(dep.getType()).append(" (").append(dep.getContext()).append(")\n");
                         }
                     }
 
@@ -127,11 +94,11 @@ public class AnalysisController {
                         view.updateDepsCount(model.getDepsCount().get());
                         view.updateHierarchy(hierarchy.toString());
                     });
-                })
-                .subscribe(
-                        report -> { },
-                        error -> SwingUtilities.invokeLater(() -> view.updateStatus("Error: " + error.getMessage())),
-                        () -> SwingUtilities.invokeLater(() -> view.updateStatus("Analysis complete"))
-                );
+                }, error -> SwingUtilities.invokeLater(() -> view.updateStatus("Error: " + error.getMessage())), () -> SwingUtilities.invokeLater(() -> view.updateStatus("Analysis complete")));
+        return true;
+    }
+
+    public void setSelectedDir(File selectedDir){
+        this.model.setSelectedDir(selectedDir);
     }
 }
