@@ -14,14 +14,12 @@ public class AnalysisView {
     private AnalysisController controller;
 
     public AnalysisView() {
-        this.controller = controller;
 
         frame = new JFrame("Dependency Analyser");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setMinimumSize(new Dimension(800, 600));
         frame.setLayout(new BorderLayout(10, 10));
 
-        // Control panel (top)
         JPanel controlPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         selectDirButton = new JButton("Select Folder");
         startButton = new JButton("Start Analysis");
@@ -40,14 +38,12 @@ public class AnalysisView {
         statusPanel.add(depsCountLabel);
         statusPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Hierarchy panel (center)
         hierarchyArea = new JTextArea();
         hierarchyArea.setEditable(false);
         hierarchyArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
         JScrollPane scrollPane = new JScrollPane(hierarchyArea);
         scrollPane.setBorder(BorderFactory.createTitledBorder("Dependency Hierarchy"));
 
-        // Assemble frame
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.add(controlPanel, BorderLayout.NORTH);
         topPanel.add(statusPanel, BorderLayout.CENTER);
